@@ -1,21 +1,11 @@
 import React from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import {
-  ColDef,
-  GridReadyEvent,
-  IDetailCellRendererParams,
-} from 'ag-grid-community';
+import { ColDef, GridReadyEvent, IDetailCellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import 'ag-grid-enterprise';
 
-// ---------------- Types ----------------
-interface SubAccount {
-  accountId: string;
-  type: string;
-  status: string;
-}
-
+// ---------- Types ----------
 interface FluData {
   symptom: string;
   severity: string;
@@ -29,7 +19,6 @@ interface LegalEntity {
   jurisdiction: string;
   processingCountry: string;
   settlementCountry: string;
-  subAccounts: SubAccount[];
   fluData: FluData[];
 }
 
@@ -52,18 +41,10 @@ interface Attestation {
   languages: Language[];
 }
 
-// ---------------- Columns ----------------
+// ---------- Column Definitions ----------
 const parentColumns: ColDef[] = [
-  {
-    headerName: '',
-    field: 'attestationId',
-    cellRenderer: 'agGroupCellRenderer',
-  },
-  {
-    headerName: 'Actions',
-    cellRenderer: () => 'Edit | History',
-    width: 120,
-  },
+  { headerName: '', field: 'attestationId', cellRenderer: 'agGroupCellRenderer' },
+  { headerName: 'Actions', cellRenderer: () => 'Edit | History', width: 120 },
   { field: 'attestationId', headerName: 'Attestation ID' },
   { field: 'status', headerName: 'Status' },
   { field: 'createdBy', headerName: 'Created By' },
@@ -72,23 +53,19 @@ const parentColumns: ColDef[] = [
   { field: 'isScanned', headerName: 'Is Scanned' },
 ];
 
-const fluDataColumns: ColDef[] = [
-  { field: 'symptom', headerName: 'Symptom' },
-  { field: 'severity', headerName: 'Severity' },
-  { field: 'lastUpdated', headerName: 'Last Updated' },
-];
-
 const legalEntityColumns: ColDef[] = [
-  {
-    headerName: '',
-    field: 'coverageCountry',
-    cellRenderer: 'agGroupCellRenderer',
-  },
+  { headerName: '', field: 'coverageCountry', cellRenderer: 'agGroupCellRenderer' },
   { field: 'systemName', headerName: 'System Name' },
   { field: 'businessName', headerName: 'Business Name' },
   { field: 'jurisdiction', headerName: 'Jurisdiction' },
   { field: 'processingCountry', headerName: 'Processing Country' },
   { field: 'settlementCountry', headerName: 'Settlement Country' },
+];
+
+const fluDataColumns: ColDef[] = [
+  { field: 'symptom', headerName: 'Symptom' },
+  { field: 'severity', headerName: 'Severity' },
+  { field: 'lastUpdated', headerName: 'Last Updated' },
 ];
 
 const languageColumns: ColDef[] = [
@@ -99,7 +76,56 @@ const languageColumns: ColDef[] = [
   { field: 'level3', headerName: 'Family Level 3' },
 ];
 
-// ---------------- Sample Data ----------------
+// ---------- Detail Renderers ----------
+const FluDataGrid: React.FC<{ data: FluData[] }> = ({ data }) => (
+  <div className="ag-theme-alpine" style={{ height: 150 }}>
+    <AgGridReact<FluData>
+      rowData={data}
+      columnDefs={fluDataColumns}
+      defaultColDef={{ flex: 1, resizable: true, filter: true, sortable: true }}
+    />
+  </div>
+);
+
+const LegalEntityDetailRenderer: React.FC<IDetailCellRendererParams<LegalEntity>> = ({ data }) => (
+  <FluDataGrid data={data?.fluData || []} />
+);
+
+const LegalEntityGrid: React.FC<{ data: LegalEntity[] }> = ({ data }) => (
+  <div className="ag-theme-alpine" style={{ height: 200 }}>
+    <AgGridReact<LegalEntity>
+      rowData={data}
+      columnDefs={legalEntityColumns}
+      masterDetail={true}
+      isRowMaster={(row) => !!row?.fluData?.length}
+      detailCellRenderer={LegalEntityDetailRenderer}
+      detailRowHeight={150}
+      defaultColDef={{ flex: 1, resizable: true, filter: true, sortable: true }}
+    />
+  </div>
+);
+
+const DetailRenderer: React.FC<IDetailCellRendererParams<Attestation>> = ({ data }) => (
+  <div style={{ padding: 10 }}>
+    <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: 6 }}>
+      Legal Entities
+    </div>
+    <LegalEntityGrid data={data?.legalEntities || []} />
+
+    <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: 20, marginBottom: 6 }}>
+      Languages and Family
+    </div>
+    <div className="ag-theme-alpine" style={{ height: 150 }}>
+      <AgGridReact<Language>
+        rowData={data?.languages || []}
+        columnDefs={languageColumns}
+        defaultColDef={{ flex: 1, resizable: true, filter: true, sortable: true }}
+      />
+    </div>
+  </div>
+);
+
+// ---------- Sample Data ----------
 const rowData: Attestation[] = [
   {
     attestationId: 'ATT123',
@@ -116,7 +142,6 @@ const rowData: Attestation[] = [
         jurisdiction: 'US',
         processingCountry: 'US',
         settlementCountry: 'US',
-        subAccounts: [],
         fluData: [
           { symptom: 'Fever', severity: 'Mild', lastUpdated: '2024-04-01' },
           { symptom: 'Cough', severity: 'Moderate', lastUpdated: '2024-04-03' },
@@ -135,58 +160,7 @@ const rowData: Attestation[] = [
   },
 ];
 
-// ---------------- Nested Renderers ----------------
-const LegalEntityDetailRenderer: React.FC<IDetailCellRendererParams<LegalEntity>> = ({ data }) => {
-  return (
-    <div className="ag-theme-alpine" style={{ height: 150 }}>
-      <AgGridReact<FluData>
-        rowData={data?.fluData}
-        columnDefs={fluDataColumns}
-        defaultColDef={{ flex: 1, resizable: true }}
-      />
-    </div>
-  );
-};
-
-const LegalEntityGrid: React.FC<{ data: LegalEntity[] }> = ({ data }) => {
-  return (
-    <div className="ag-theme-alpine" style={{ height: 200 }}>
-      <AgGridReact<LegalEntity>
-        rowData={data}
-        columnDefs={legalEntityColumns}
-        masterDetail={true}
-        isRowMaster={(row) => !!row?.fluData?.length}
-        detailCellRenderer={LegalEntityDetailRenderer}
-        detailRowHeight={150}
-        defaultColDef={{ flex: 1, resizable: true }}
-      />
-    </div>
-  );
-};
-
-const DetailRenderer: React.FC<IDetailCellRendererParams<Attestation>> = ({ data }) => {
-  return (
-    <div style={{ padding: 10 }}>
-      <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: 6 }}>
-        Legal Entities
-      </div>
-      <LegalEntityGrid data={data?.legalEntities} />
-
-      <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: 20, marginBottom: 6 }}>
-        Languages and Family
-      </div>
-      <div className="ag-theme-alpine" style={{ height: 150 }}>
-        <AgGridReact<Language>
-          rowData={data?.languages}
-          columnDefs={languageColumns}
-          defaultColDef={{ flex: 1, resizable: true }}
-        />
-      </div>
-    </div>
-  );
-};
-
-// ---------------- Main Grid ----------------
+// ---------- Main Component ----------
 const GridExample2: React.FC = () => {
   const gridRef = React.useRef<AgGridReact<Attestation>>(null);
 
@@ -225,13 +199,14 @@ const GridExample2: React.FC = () => {
           isRowMaster={() => true}
           detailRowHeight={450}
           detailCellRenderer={DetailRenderer}
-          onGridReady={onGridReady}
           pagination={true}
           paginationPageSize={10}
+          onGridReady={onGridReady}
           defaultColDef={{
             flex: 1,
             resizable: true,
             filter: true,
+            sortable: true,
             floatingFilter: true,
           }}
         />
