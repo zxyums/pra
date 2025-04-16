@@ -1,0 +1,212 @@
+import React from 'react';
+import { AgGridReact } from 'ag-grid-react';
+import {
+  ColDef,
+  IDetailCellRendererParams,
+  GridReadyEvent,
+} from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import 'ag-grid-enterprise';
+
+interface SubAccount {
+  accountId: string;
+  type: string;
+  status: string;
+}
+
+interface LegalEntity {
+  changeType: string;
+  priority: string;
+  requestId: string;
+  ruleExceptionName: string;
+  agendaName: string;
+  projectSource: string;
+  subAccounts: SubAccount[];
+}
+
+interface Language {
+  latin: string;
+  nonLatin: string;
+  level1: string;
+  level2: string;
+  level3: string;
+}
+
+interface Attestation {
+  attestationId: string;
+  status: string;
+  createdBy: string;
+  country: string;
+  watchlist: string;
+  isScanned: string;
+  legalEntities: LegalEntity[];
+  languages: Language[];
+}
+
+// Sample Data
+const rowData: Attestation[] = [
+  {
+    attestationId: 'ATT123',
+    status: 'Active',
+    createdBy: 'Ramya',
+    country: 'India',
+    watchlist: 'Sanctions',
+    isScanned: 'Yes',
+    legalEntities: [
+      {
+        changeType: 'Update',
+        priority: 'Medium',
+        requestId: 'REQ-101',
+        ruleExceptionName: 'High Value Exception',
+        agendaName: 'AML Policy',
+        projectSource: 'Initiative Alpha',
+        subAccounts: [
+          { accountId: 'AC101', type: 'Retail', status: 'Active' },
+          { accountId: 'AC102', type: 'Corporate', status: 'Pending' },
+        ],
+      },
+    ],
+    languages: [
+      {
+        latin: 'English',
+        nonLatin: 'None',
+        level1: 'Consumer',
+        level2: 'Retail',
+        level3: 'Luxury',
+      },
+    ],
+  },
+  {
+    attestationId: 'ATT456',
+    status: 'Pending',
+    createdBy: 'Admin',
+    country: 'US',
+    watchlist: 'PEP',
+    isScanned: 'Yes',
+    legalEntities: [
+      {
+        changeType: 'Add',
+        priority: 'High',
+        requestId: 'REQ-102',
+        ruleExceptionName: 'Senior Official',
+        agendaName: 'Watchlist Update',
+        projectSource: 'Initiative Beta',
+        subAccounts: [
+          { accountId: 'AC201', type: 'Private', status: 'Inactive' },
+        ],
+      },
+    ],
+    languages: [
+      {
+        latin: 'Spanish',
+        nonLatin: 'None',
+        level1: 'Corporate',
+        level2: 'B2B',
+        level3: 'Bulk',
+      },
+    ],
+  },
+];
+
+// Column Definitions
+const parentColumns: ColDef[] = [
+  { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 40 },
+  { headerName: 'Actions', cellRenderer: () => 'Edit | History' },
+  { field: 'attestationId', headerName: 'Attestation ID' },
+  { field: 'status', headerName: 'Status' },
+  { field: 'createdBy', headerName: 'Created By' },
+  { field: 'country', headerName: 'Country' },
+  { field: 'watchlist', headerName: 'Watchlist' },
+  { field: 'isScanned', headerName: 'Is Scanned' },
+];
+
+const legalEntityColumns: ColDef[] = [
+  { field: 'changeType', headerName: 'Change Type' },
+  { field: 'priority', headerName: 'Priority' },
+  { field: 'requestId', headerName: 'Request Id' },
+  { field: 'ruleExceptionName', headerName: 'Rule/Exception Name' },
+  { field: 'agendaName', headerName: 'Agenda Name' },
+  { field: 'projectSource', headerName: 'Project Source' },
+];
+
+const subAccountColumns: ColDef[] = [
+  { field: 'accountId', headerName: 'Account ID' },
+  { field: 'type', headerName: 'Type' },
+  { field: 'status', headerName: 'Status' },
+];
+
+const languageColumns: ColDef[] = [
+  { field: 'latin', headerName: 'Latin Languages' },
+  { field: 'nonLatin', headerName: 'Non-Latin Languages' },
+  { field: 'level1', headerName: 'Family Level 1' },
+  { field: 'level2', headerName: 'Family Level 2' },
+  { field: 'level3', headerName: 'Family Level 3' },
+];
+
+// Detail View Renderer
+const DetailRenderer: React.FC<IDetailCellRendererParams<Attestation>> = ({ data }) => {
+  return (
+    <div style={{ padding: 10 }}>
+      <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '6px' }}>
+        Legal Entities
+      </div>
+      <div className="ag-theme-alpine" style={{ height: 200 }}>
+        <AgGridReact<LegalEntity>
+          rowData={data?.legalEntities}
+          columnDefs={legalEntityColumns}
+          rowSelection="multiple"
+          masterDetail={true}
+          isRowMaster={(row) => !!row?.subAccounts?.length}
+          detailRowHeight={150}
+          detailCellRenderer={({ data }: { data: LegalEntity }) => (
+            <div className="ag-theme-alpine" style={{ height: 150 }}>
+              <AgGridReact<SubAccount>
+                rowData={data.subAccounts}
+                columnDefs={subAccountColumns}
+                defaultColDef={{ flex: 1, resizable: true }}
+              />
+            </div>
+          )}
+          defaultColDef={{ flex: 1, resizable: true }}
+        />
+      </div>
+
+      <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '20px', marginBottom: '6px' }}>
+        Languages and Family
+      </div>
+      <div className="ag-theme-alpine" style={{ height: 150 }}>
+        <AgGridReact<Language>
+          rowData={data?.languages}
+          columnDefs={languageColumns}
+          defaultColDef={{ flex: 1, resizable: true }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Main Component
+const GridExample2: React.FC = () => {
+  const onGridReady = (params: GridReadyEvent) => {
+    params.api.sizeColumnsToFit();
+  };
+
+  return (
+    <div className="ag-theme-alpine" style={{ height: '100vh', width: '100%' }}>
+      <AgGridReact<Attestation>
+        rowData={rowData}
+        columnDefs={parentColumns}
+        rowSelection="multiple"
+        masterDetail={true}
+        isRowMaster={() => true}
+        detailRowHeight={450}
+        detailCellRenderer={DetailRenderer}
+        defaultColDef={{ flex: 1, resizable: true }}
+        onGridReady={onGridReady}
+      />
+    </div>
+  );
+};
+
+export default GridExample2;
