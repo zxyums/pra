@@ -1,93 +1,155 @@
-// File: NestedGrid.tsx
-import React from 'react';
-import { AgGridReact } from 'ag-grid-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
-import 'ag-grid-enterprise';
+import React from "react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import "ag-grid-enterprise";
+import { AgGridReact } from "ag-grid-react";
 
-const NestedGrid = () => {
+const App = () => {
   const rowData = [
     {
-      orderId: 'ORD001',
-      date: '2025-04-15',
-      customer: 'John Doe',
-      ruleName: 'High Value Alert',
-      requestId: 'REQ-001',
-      children: [
+      attestationId: 'ATT456',
+      status: 'Pending',
+      createdBy: 'Admin',
+      country: 'US',
+      watchlist: 'PEP',
+      isScanned: 'Yes',
+      legalEntities: [
         {
-          productName: 'Laptop',
-          attribute: 'Color',
-          recordName: 'Laptop-Red',
-          changeType: 'Update',
-          priority: 'High',
-        },
-        {
-          productName: 'Mouse',
-          attribute: 'Size',
-          recordName: 'Mouse-Medium',
-          changeType: 'Add',
-          priority: 'Low',
-        },
+          coverageCountry: 'US',
+          systemName: 'System A',
+          businessName: 'XYZ Corp',
+          jurisdiction: 'US',
+          processingCountry: 'US',
+          settlementCountry: 'US',
+          subAccounts: [
+            { accountId: 'AC001', type: 'Corporate', status: 'Active' },
+            { accountId: 'AC002', type: 'Retail', status: 'Inactive' }
+          ]
+        }
       ],
-    },
-    {
-      orderId: 'ORD002',
-      date: '2025-04-16',
-      customer: 'Jane Smith',
-      ruleName: 'Low Risk Check',
-      requestId: 'REQ-002',
-      children: [
+      languages: [
         {
-          productName: 'Keyboard',
-          attribute: 'Layout',
-          recordName: 'Keyboard-QWERTY',
-          changeType: 'Delete',
-          priority: 'Medium',
-        },
-      ],
-    },
+          latin: 'English',
+          nonLatin: 'None',
+          level1: 'Retail',
+          level2: 'Consumer',
+          level3: 'Beverages'
+        }
+      ]
+    }
   ];
 
   const parentColumns = [
-    { field: 'orderId', headerName: 'Order Id' },
-    { field: 'date', headerName: 'Date' },
-    { field: 'customer', headerName: 'Customer' },
-    { field: 'ruleName', headerName: 'Rule Name' },
-    { field: 'requestId', headerName: 'Request Id' },
+    {
+      headerName: '',
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      width: 40,
+    },
+    { headerName: 'Actions', cellRenderer: () => <span>Edit | History</span> },
+    { field: 'attestationId', headerName: 'Attestation ID' },
+    { field: 'status', headerName: 'Status' },
+    { field: 'createdBy', headerName: 'Created By' },
+    { field: 'country', headerName: 'Country' },
+    { field: 'watchlist', headerName: 'Watchlist' },
+    { field: 'isScanned', headerName: 'Is Scanned' }
   ];
 
-  const childColumns = [
-    { field: 'productName', headerName: 'Product' },
-    { field: 'attribute', headerName: 'Attribute' },
-    { field: 'recordName', headerName: 'Record Name' },
-    { field: 'changeType', headerName: 'Change Type' },
-    { field: 'priority', headerName: 'Priority' },
+  const legalEntityColumns = [
+    {
+      headerName: '',
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      width: 40,
+    },
+    { field: 'coverageCountry' },
+    { field: 'systemName' },
+    { field: 'businessName' },
+    { field: 'jurisdiction' },
+    { field: 'processingCountry' },
+    { field: 'settlementCountry' }
   ];
 
-  const detailCellRendererParams = {
-    detailGridOptions: {
-      columnDefs: childColumns,
-      defaultColDef: { flex: 1, resizable: true },
+  const subAccountColumns = [
+    {
+      headerName: '',
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      width: 40,
     },
-    getDetailRowData: (params: any) => {
-      console.log('Getting detail rows for:', params.data);
-      params.successCallback(params.data.children || []);
-    },
+    { field: 'accountId', headerName: 'Account ID' },
+    { field: 'type', headerName: 'Type' },
+    { field: 'status', headerName: 'Status' }
+  ];
+
+  const languageColumns = [
+    { field: 'latin', headerName: 'Latin Languages' },
+    { field: 'nonLatin', headerName: 'Non-Latin Languages' },
+    { field: 'level1', headerName: 'Family Level 1' },
+    { field: 'level2', headerName: 'Family Level 2' },
+    { field: 'level3', headerName: 'Family Level 3' }
+  ];
+
+  const detailCellRenderer = (params) => {
+    const { legalEntities, languages } = params.data;
+
+    return (
+      <div style={{ padding: 10 }}>
+        {/* Legal Entities Grid with nested master-detail */}
+        <div style={{ marginBottom: 20 }}>
+          <h4>Legal Entities</h4>
+          <div className="ag-theme-alpine" style={{ height: 200, width: "100%" }}>
+            <AgGridReact
+              rowData={legalEntities}
+              columnDefs={legalEntityColumns}
+              rowSelection="multiple"
+              masterDetail={true}
+              detailRowHeight={150}
+              isRowMaster={(row) => row?.subAccounts?.length > 0}
+              detailCellRendererParams={{
+                detailGridOptions: {
+                  columnDefs: subAccountColumns,
+                  rowSelection: "multiple",
+                  defaultColDef: { flex: 1 }
+                },
+                getDetailRowData: (params) => {
+                  params.successCallback(params.data.subAccounts || []);
+                }
+              }}
+              defaultColDef={{ flex: 1, resizable: true }}
+            />
+          </div>
+        </div>
+
+        {/* Languages Grid (Not expandable) */}
+        <div>
+          <h4>Languages and Family</h4>
+          <div className="ag-theme-alpine" style={{ height: 150, width: "100%" }}>
+            <AgGridReact
+              rowData={languages}
+              columnDefs={languageColumns}
+              defaultColDef={{ flex: 1, resizable: true }}
+            />
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="ag-theme-alpine" style={{ height: '100vh', width: '100%' }}>
+    <div className="ag-theme-alpine" style={{ height: "100vh", width: "100%" }}>
       <AgGridReact
         rowData={rowData}
         columnDefs={parentColumns}
+        rowSelection="multiple"
         masterDetail={true}
-        detailRowHeight={250}
-        isRowMaster={(data) => data?.children?.length > 0}
-        detailCellRendererParams={detailCellRendererParams}
+        detailRowHeight={450}
+        isRowMaster={() => true}
+        detailCellRendererFramework={detailCellRenderer}
         defaultColDef={{ flex: 1, resizable: true }}
       />
     </div>
   );
 };
 
-export default NestedGrid;
+export default App;
