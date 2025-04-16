@@ -45,7 +45,7 @@ interface Attestation {
   languages: Language[];
 }
 
-// ---------- Sample Data ----------
+// ---------- Data ----------
 const rowData: Attestation[] = [
   {
     attestationId: 'ATT123',
@@ -104,7 +104,18 @@ const rowData: Attestation[] = [
         level3: 'Luxury'
       }
     ]
-  }
+  },
+  // Duplicate sample rows for demo pagination
+  ...Array(20).fill(0).map((_, i) => ({
+    attestationId: `ATT-${100 + i}`,
+    status: i % 2 === 0 ? 'Active' : 'Inactive',
+    createdBy: `User${i}`,
+    country: i % 2 === 0 ? 'India' : 'US',
+    watchlist: 'Sanctions',
+    isScanned: 'Yes',
+    legalEntities: [],
+    languages: []
+  }))
 ];
 
 // ---------- Columns ----------
@@ -191,26 +202,57 @@ const DetailRenderer: React.FC<IDetailCellRendererParams<Attestation>> = ({ data
   );
 };
 
-// ---------- Main Grid Component ----------
+// ---------- Main Grid ----------
 const GridExample2: React.FC = () => {
+  const gridRef = React.useRef<AgGridReact<Attestation>>(null);
+
   const onGridReady = (params: GridReadyEvent) => {
     params.api.sizeColumnsToFit();
   };
 
+  const expandAll = () => {
+    gridRef.current?.api.forEachNode((node) => node.setExpanded(true));
+  };
+
+  const collapseAll = () => {
+    gridRef.current?.api.forEachNode((node) => node.setExpanded(false));
+  };
+
   return (
-    <div className="ag-theme-alpine" style={{ height: '100vh', width: '100%' }}>
-      <AgGridReact<Attestation>
-        rowData={rowData}
-        columnDefs={parentColumns}
-        rowSelection="multiple"
-        masterDetail={true}
-        isRowMaster={() => true}
-        detailRowHeight={450}
-        detailCellRenderer={DetailRenderer}
-        defaultColDef={{ flex: 1, resizable: true }}
-        onGridReady={onGridReady}
-      />
-    </div>
+    <>
+      <div style={{ margin: '10px 0' }}>
+        <button onClick={expandAll}>Expand All</button>
+        <button onClick={collapseAll} style={{ marginLeft: 10 }}>Collapse All</button>
+        <button
+          onClick={() => gridRef.current?.api.exportDataAsExcel()}
+          style={{ marginLeft: 10 }}
+        >
+          Export to Excel
+        </button>
+      </div>
+
+      <div className="ag-theme-alpine" style={{ height: '85vh', width: '100%' }}>
+        <AgGridReact<Attestation>
+          ref={gridRef}
+          rowData={rowData}
+          columnDefs={parentColumns}
+          rowSelection="multiple"
+          masterDetail={true}
+          isRowMaster={() => true}
+          detailRowHeight={450}
+          detailCellRenderer={DetailRenderer}
+          onGridReady={onGridReady}
+          pagination={true}
+          paginationPageSize={10}
+          defaultColDef={{
+            flex: 1,
+            resizable: true,
+            filter: true,
+            floatingFilter: true
+          }}
+        />
+      </div>
+    </>
   );
 };
 
