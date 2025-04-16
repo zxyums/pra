@@ -2,92 +2,68 @@ import React from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import 'ag-grid-enterprise';
+import 'ag-grid-enterprise'; // Required for master/detail
 
 const NestedAgGrid = () => {
-  const ordersData = [
+  const rowData = [
     {
       orderId: 'ORD001',
       date: '2025-04-15',
       customer: 'John Doe',
-      products: [
+      ruleName: 'High Value Alert',
+      requestId: 'REQ-001',
+      children: [
         {
           productName: 'Laptop',
-          quantity: 1,
-          price: 1500,
-          shipments: [
-            { carrier: 'FedEx', trackingId: 'FX123', status: 'Delivered' },
-          ],
+          attribute: 'Color',
+          recordName: 'Laptop-Red',
+          changeType: 'Update',
+          priority: 'High',
         },
         {
           productName: 'Mouse',
-          quantity: 2,
-          price: 40,
-          shipments: [
-            { carrier: 'UPS', trackingId: 'UPS999', status: 'Shipped' },
-          ],
-        },
-      ],
-    },
-    {
-      orderId: 'ORD002',
-      date: '2025-04-16',
-      customer: 'Jane Smith',
-      products: [
-        {
-          productName: 'Keyboard',
-          quantity: 1,
-          price: 80,
-          shipments: [
-            { carrier: 'DHL', trackingId: 'DHL456', status: 'In Transit' },
-          ],
+          attribute: 'Size',
+          recordName: 'Mouse-Medium',
+          changeType: 'Add',
+          priority: 'Low',
         },
       ],
     },
   ];
 
-  const orderColumns = [
-    { field: 'orderId' },
-    { field: 'date' },
-    { field: 'customer' },
+  const parentColumns = [
+    { field: 'orderId', headerName: 'Order Id' },
+    { field: 'date', headerName: 'Date' },
+    { field: 'customer', headerName: 'Customer' },
+    { field: 'ruleName', headerName: 'Rule Name' },
+    { field: 'requestId', headerName: 'Request Id' },
   ];
 
-  const productColumns = [
-    { field: 'productName' },
-    { field: 'quantity' },
-    { field: 'price' },
-  ];
-
-  const shipmentColumns = [
-    { field: 'carrier' },
-    { field: 'trackingId' },
-    { field: 'status' },
+  const childColumns = [
+    { field: 'productName', headerName: 'Product' },
+    { field: 'attribute', headerName: 'Attribute' },
+    { field: 'recordName', headerName: 'Record Name' },
+    { field: 'changeType', headerName: 'Change Type' },
+    { field: 'priority', headerName: 'Priority' },
   ];
 
   return (
     <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
       <AgGridReact
-        rowData={ordersData}
-        columnDefs={orderColumns}
+        rowData={rowData}
+        columnDefs={parentColumns}
         masterDetail={true}
         detailCellRendererParams={{
           detailGridOptions: {
-            columnDefs: productColumns,
-            masterDetail: true,
-            detailCellRendererParams: {
-              detailGridOptions: {
-                columnDefs: shipmentColumns,
-              },
-              getDetailRowData: (params: any) => {
-                params.successCallback(params.data.shipments);
-              },
-            },
+            columnDefs: childColumns,
+            defaultColDef: { flex: 1 },
           },
           getDetailRowData: (params: any) => {
-            params.successCallback(params.data.products);
+            params.successCallback(params.data.children || []);
           },
         }}
         defaultColDef={{ flex: 1, resizable: true }}
+        domLayout="autoHeight"
       />
     </div>
   );
