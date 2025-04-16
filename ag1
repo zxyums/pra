@@ -1,0 +1,242 @@
+import React from "react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import "ag-grid-enterprise";
+import { AgGridReact } from "ag-grid-react";
+
+const App = () => {
+  const rowData = [
+    {
+      attestationId: "ATT123",
+      status: "Active",
+      createdBy: "Ramya",
+      country: "India",
+      watchlist: "Sanctions",
+      isScanned: "Yes",
+      legalEntities: [
+        {
+          changeType: "Update",
+          priority: "Medium",
+          requestId: "REQ-101",
+          ruleExceptionName: "High Value Exception",
+          agendaName: "AML Policy",
+          projectSource: "Initiative Alpha",
+          subAccounts: [
+            { accountId: "AC101", type: "Retail", status: "Active" },
+            { accountId: "AC102", type: "Corporate", status: "Pending" }
+          ]
+        }
+      ],
+      languages: [
+        {
+          latin: "English",
+          nonLatin: "None",
+          level1: "Consumer",
+          level2: "Retail",
+          level3: "Luxury"
+        }
+      ]
+    },
+    {
+      attestationId: "ATT456",
+      status: "Pending",
+      createdBy: "Admin",
+      country: "US",
+      watchlist: "PEP",
+      isScanned: "Yes",
+      legalEntities: [
+        {
+          changeType: "Add",
+          priority: "High",
+          requestId: "REQ-102",
+          ruleExceptionName: "Senior Official",
+          agendaName: "Watchlist Update",
+          projectSource: "Initiative Beta",
+          subAccounts: [
+            { accountId: "AC201", type: "Private", status: "Inactive" }
+          ]
+        }
+      ],
+      languages: [
+        {
+          latin: "Spanish",
+          nonLatin: "None",
+          level1: "Corporate",
+          level2: "B2B",
+          level3: "Bulk"
+        }
+      ]
+    },
+    {
+      attestationId: "ATT789",
+      status: "Inactive",
+      createdBy: "User1",
+      country: "UK",
+      watchlist: "Sanctions",
+      isScanned: "No",
+      legalEntities: [
+        {
+          changeType: "Delete",
+          priority: "Low",
+          requestId: "REQ-103",
+          ruleExceptionName: "Dormant Entity",
+          agendaName: "Cleanup",
+          projectSource: "Project Gamma",
+          subAccounts: []
+        }
+      ],
+      languages: [
+        {
+          latin: "French",
+          nonLatin: "Arabic",
+          level1: "Legal",
+          level2: "Govt",
+          level3: "Restricted"
+        }
+      ]
+    },
+    {
+      attestationId: "ATT999",
+      status: "Active",
+      createdBy: "User2",
+      country: "Canada",
+      watchlist: "Internal",
+      isScanned: "Yes",
+      legalEntities: [
+        {
+          changeType: "Add",
+          priority: "High",
+          requestId: "REQ-104",
+          ruleExceptionName: "Internal Breach",
+          agendaName: "Urgent Action",
+          projectSource: "Project Omega",
+          subAccounts: [
+            { accountId: "AC301", type: "Retail", status: "Active" },
+            { accountId: "AC302", type: "Wholesale", status: "Inactive" },
+            { accountId: "AC303", type: "Institutional", status: "Active" }
+          ]
+        }
+      ],
+      languages: [
+        {
+          latin: "German",
+          nonLatin: "Chinese",
+          level1: "Enterprise",
+          level2: "Commercial",
+          level3: "Premium"
+        }
+      ]
+    }
+  ];
+
+  const parentColumns = [
+    {
+      headerName: "",
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      width: 40
+    },
+    {
+      headerName: "Actions",
+      cellRenderer: () => <span>Edit | History</span>
+    },
+    { field: "attestationId", headerName: "Attestation ID" },
+    { field: "status", headerName: "Status" },
+    { field: "createdBy", headerName: "Created By" },
+    { field: "country", headerName: "Country" },
+    { field: "watchlist", headerName: "Watchlist" },
+    { field: "isScanned", headerName: "Is Scanned" }
+  ];
+
+  const legalEntityColumns = [
+    {
+      headerName: "",
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      width: 40
+    },
+    { field: "changeType", headerName: "ChangeType" },
+    { field: "priority", headerName: "Priority" },
+    { field: "requestId", headerName: "Request Id" },
+    { field: "ruleExceptionName", headerName: "Rule/Exception Name" },
+    { field: "agendaName", headerName: "Agenda Name" },
+    { field: "projectSource", headerName: "Project/Initiative Source" }
+  ];
+
+  const subAccountColumns = [
+    {
+      headerName: "",
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      width: 40
+    },
+    { field: "accountId", headerName: "Account ID" },
+    { field: "type", headerName: "Type" },
+    { field: "status", headerName: "Status" }
+  ];
+
+  const languageColumns = [
+    { field: "latin", headerName: "Latin Languages" },
+    { field: "nonLatin", headerName: "Non-Latin Languages" },
+    { field: "level1", headerName: "Family Level 1" },
+    { field: "level2", headerName: "Family Level 2" },
+    { field: "level3", headerName: "Family Level 3" }
+  ];
+
+  const DetailRenderer = (params) => {
+    const { legalEntities, languages } = params.data;
+
+    return (
+      <div style={{ padding: 10 }}>
+        <h4>Legal Entities</h4>
+        <div className="ag-theme-alpine" style={{ height: 200, width: "100%", marginBottom: 20 }}>
+          <AgGridReact
+            rowData={legalEntities}
+            columnDefs={legalEntityColumns}
+            rowSelection="multiple"
+            masterDetail={true}
+            detailRowHeight={150}
+            isRowMaster={(row) => row?.subAccounts?.length > 0}
+            detailCellRendererParams={{
+              detailGridOptions: {
+                columnDefs: subAccountColumns,
+                rowSelection: "multiple",
+                defaultColDef: { flex: 1, resizable: true }
+              },
+              getDetailRowData: (params) => {
+                params.successCallback(params.data.subAccounts || []);
+              }
+            }}
+            defaultColDef={{ flex: 1, resizable: true }}
+          />
+        </div>
+
+        <h4>Languages and Family</h4>
+        <div className="ag-theme-alpine" style={{ height: 150, width: "100%" }}>
+          <AgGridReact
+            rowData={languages}
+            columnDefs={languageColumns}
+            defaultColDef={{ flex: 1, resizable: true }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="ag-theme-alpine" style={{ height: "100vh", width: "100%" }}>
+      <AgGridReact
+        rowData={rowData}
+        columnDefs={parentColumns}
+        rowSelection="multiple"
+        masterDetail={true}
+        detailRowHeight={450}
+        isRowMaster={() => true}
+        detailCellRendererFramework={DetailRenderer}
+        defaultColDef={{ flex: 1, resizable: true }}
+      />
+    </div>
+  );
+};
+
+export default App;
