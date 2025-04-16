@@ -1,10 +1,11 @@
+// File: NestedGrid.tsx
 import React from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import 'ag-grid-enterprise'; // Required for master/detail
+import 'ag-grid-enterprise';
 
-const NestedAgGrid = () => {
+const NestedGrid = () => {
   const rowData = [
     {
       orderId: 'ORD001',
@@ -29,6 +30,22 @@ const NestedAgGrid = () => {
         },
       ],
     },
+    {
+      orderId: 'ORD002',
+      date: '2025-04-16',
+      customer: 'Jane Smith',
+      ruleName: 'Low Risk Check',
+      requestId: 'REQ-002',
+      children: [
+        {
+          productName: 'Keyboard',
+          attribute: 'Layout',
+          recordName: 'Keyboard-QWERTY',
+          changeType: 'Delete',
+          priority: 'Medium',
+        },
+      ],
+    },
   ];
 
   const parentColumns = [
@@ -47,26 +64,30 @@ const NestedAgGrid = () => {
     { field: 'priority', headerName: 'Priority' },
   ];
 
+  const detailCellRendererParams = {
+    detailGridOptions: {
+      columnDefs: childColumns,
+      defaultColDef: { flex: 1, resizable: true },
+    },
+    getDetailRowData: (params: any) => {
+      console.log('Getting detail rows for:', params.data);
+      params.successCallback(params.data.children || []);
+    },
+  };
+
   return (
-    <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+    <div className="ag-theme-alpine" style={{ height: '100vh', width: '100%' }}>
       <AgGridReact
         rowData={rowData}
         columnDefs={parentColumns}
         masterDetail={true}
-        detailCellRendererParams={{
-          detailGridOptions: {
-            columnDefs: childColumns,
-            defaultColDef: { flex: 1 },
-          },
-          getDetailRowData: (params: any) => {
-            params.successCallback(params.data.children || []);
-          },
-        }}
+        detailRowHeight={250}
+        isRowMaster={(data) => data?.children?.length > 0}
+        detailCellRendererParams={detailCellRendererParams}
         defaultColDef={{ flex: 1, resizable: true }}
-        domLayout="autoHeight"
       />
     </div>
   );
 };
 
-export default NestedAgGrid;
+export default NestedGrid;
