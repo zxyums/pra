@@ -1,0 +1,212 @@
+import React from 'react';
+import { AgGridReact } from 'ag-grid-react';
+import {
+  ColDef,
+  GridReadyEvent,
+  IDetailCellRendererParams,
+} from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import 'ag-grid-enterprise'; // REQUIRED
+
+// ---------------- Types ----------------
+interface SubAccount {
+  accountId: string;
+  type: string;
+  status: string;
+}
+
+interface LegalEntity {
+  coverageCountry: string;
+  systemName: string;
+  businessName: string;
+  jurisdiction: string;
+  processingCountry: string;
+  settlementCountry: string;
+  subAccounts: SubAccount[];
+}
+
+interface Language {
+  latin: string;
+  nonLatin: string;
+  level1: string;
+  level2: string;
+  level3: string;
+}
+
+interface Attestation {
+  attestationId: string;
+  status: string;
+  createdBy: string;
+  country: string;
+  watchlist: string;
+  isScanned: string;
+  legalEntities: LegalEntity[];
+  languages: Language[];
+}
+
+// ---------------- Sample Data ----------------
+const rowData: Attestation[] = [
+  {
+    attestationId: 'ATT123',
+    status: 'Active',
+    createdBy: 'Ramya',
+    country: 'India',
+    watchlist: 'Sanctions',
+    isScanned: 'Yes',
+    legalEntities: [
+      {
+        coverageCountry: 'US',
+        systemName: 'System A',
+        businessName: 'XYZ Corp',
+        jurisdiction: 'US',
+        processingCountry: 'US',
+        settlementCountry: 'US',
+        subAccounts: [
+          { accountId: 'AC101', type: 'Retail', status: 'Active' },
+          { accountId: 'AC102', type: 'Corporate', status: 'Pending' },
+        ],
+      },
+    ],
+    languages: [
+      {
+        latin: 'English',
+        nonLatin: 'None',
+        level1: 'Retail',
+        level2: 'Consumer',
+        level3: 'Luxury',
+      },
+    ],
+  },
+  {
+    attestationId: 'ATT456',
+    status: 'Pending',
+    createdBy: 'Admin',
+    country: 'US',
+    watchlist: 'PEP',
+    isScanned: 'Yes',
+    legalEntities: [
+      {
+        coverageCountry: 'US',
+        systemName: 'System B',
+        businessName: 'ABC Inc',
+        jurisdiction: 'US',
+        processingCountry: 'US',
+        settlementCountry: 'US',
+        subAccounts: [],
+      },
+    ],
+    languages: [
+      {
+        latin: 'English',
+        nonLatin: 'Spanish',
+        level1: 'Retail',
+        level2: 'Consumer',
+        level3: 'Luxury',
+      },
+    ],
+  },
+];
+
+// ---------------- Columns ----------------
+const parentColumns: ColDef[] = [
+  { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 40 },
+  { headerName: 'Actions', cellRenderer: () => 'Edit | History' },
+  { field: 'attestationId', headerName: 'Attestation ID' },
+  { field: 'status', headerName: 'Status' },
+  { field: 'createdBy', headerName: 'Created By' },
+  { field: 'country', headerName: 'Country' },
+  { field: 'watchlist', headerName: 'Watchlist' },
+  { field: 'isScanned', headerName: 'Is Scanned' },
+];
+
+const legalEntityColumns: ColDef[] = [
+  { field: 'coverageCountry', headerName: 'Coverage Country' },
+  { field: 'systemName', headerName: 'System Name' },
+  { field: 'businessName', headerName: 'Business Name' },
+  { field: 'jurisdiction', headerName: 'Jurisdiction' },
+  { field: 'processingCountry', headerName: 'Processing Country' },
+  { field: 'settlementCountry', headerName: 'Settlement Country' },
+];
+
+const subAccountColumns: ColDef[] = [
+  { field: 'accountId', headerName: 'Account ID' },
+  { field: 'type', headerName: 'Type' },
+  { field: 'status', headerName: 'Status' },
+];
+
+const languageColumns: ColDef[] = [
+  { field: 'latin', headerName: 'Latin Languages' },
+  { field: 'nonLatin', headerName: 'Non-Latin Languages' },
+  { field: 'level1', headerName: 'Family Level 1' },
+  { field: 'level2', headerName: 'Family Level 2' },
+  { field: 'level3', headerName: 'Family Level 3' },
+];
+
+// ---------------- Detail Renderer ----------------
+const DetailRenderer: React.FC<IDetailCellRendererParams<Attestation>> = ({ data }) => {
+  console.log('DetailRenderer triggered for:', data?.attestationId);
+
+  return (
+    <div style={{ padding: 10 }}>
+      <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: 6 }}>
+        Legal Entities
+      </div>
+      <div className="ag-theme-alpine" style={{ height: 200 }}>
+        <AgGridReact<LegalEntity>
+          rowData={data?.legalEntities}
+          columnDefs={legalEntityColumns}
+          masterDetail={true}
+          isRowMaster={(row) => !!row?.subAccounts?.length}
+          detailRowHeight={150}
+          detailCellRenderer={({ data }: { data: LegalEntity }) => (
+            <div className="ag-theme-alpine" style={{ height: 150 }}>
+              <AgGridReact<SubAccount>
+                rowData={data?.subAccounts}
+                columnDefs={subAccountColumns}
+                defaultColDef={{ flex: 1, resizable: true }}
+              />
+            </div>
+          )}
+          defaultColDef={{ flex: 1, resizable: true }}
+        />
+      </div>
+
+      <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: 20, marginBottom: 6 }}>
+        Languages and Family
+      </div>
+      <div className="ag-theme-alpine" style={{ height: 150 }}>
+        <AgGridReact<Language>
+          rowData={data?.languages}
+          columnDefs={languageColumns}
+          defaultColDef={{ flex: 1, resizable: true }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ---------------- Main Grid Component ----------------
+const GridExample2: React.FC = () => {
+  const onGridReady = (params: GridReadyEvent) => {
+    params.api.sizeColumnsToFit();
+  };
+
+  return (
+    <div className="ag-theme-alpine" style={{ height: '100vh', width: '100%' }}>
+      <AgGridReact<Attestation>
+        rowData={rowData}
+        columnDefs={parentColumns}
+        rowSelection="multiple"
+        masterDetail={true}
+        isRowMaster={() => true}
+        detailRowHeight={450}
+        detailCellRenderer={DetailRenderer}
+        defaultColDef={{ flex: 1, resizable: true }}
+        onGridReady={onGridReady}
+      />
+    </div>
+  );
+};
+
+export default GridExample2;
