@@ -1,0 +1,96 @@
+import React from 'react';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import 'ag-grid-enterprise';
+
+const NestedAgGrid = () => {
+  const ordersData = [
+    {
+      orderId: 'ORD001',
+      date: '2025-04-15',
+      customer: 'John Doe',
+      products: [
+        {
+          productName: 'Laptop',
+          quantity: 1,
+          price: 1500,
+          shipments: [
+            { carrier: 'FedEx', trackingId: 'FX123', status: 'Delivered' },
+          ],
+        },
+        {
+          productName: 'Mouse',
+          quantity: 2,
+          price: 40,
+          shipments: [
+            { carrier: 'UPS', trackingId: 'UPS999', status: 'Shipped' },
+          ],
+        },
+      ],
+    },
+    {
+      orderId: 'ORD002',
+      date: '2025-04-16',
+      customer: 'Jane Smith',
+      products: [
+        {
+          productName: 'Keyboard',
+          quantity: 1,
+          price: 80,
+          shipments: [
+            { carrier: 'DHL', trackingId: 'DHL456', status: 'In Transit' },
+          ],
+        },
+      ],
+    },
+  ];
+
+  const orderColumns = [
+    { field: 'orderId' },
+    { field: 'date' },
+    { field: 'customer' },
+  ];
+
+  const productColumns = [
+    { field: 'productName' },
+    { field: 'quantity' },
+    { field: 'price' },
+  ];
+
+  const shipmentColumns = [
+    { field: 'carrier' },
+    { field: 'trackingId' },
+    { field: 'status' },
+  ];
+
+  return (
+    <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+      <AgGridReact
+        rowData={ordersData}
+        columnDefs={orderColumns}
+        masterDetail={true}
+        detailCellRendererParams={{
+          detailGridOptions: {
+            columnDefs: productColumns,
+            masterDetail: true,
+            detailCellRendererParams: {
+              detailGridOptions: {
+                columnDefs: shipmentColumns,
+              },
+              getDetailRowData: (params: any) => {
+                params.successCallback(params.data.shipments);
+              },
+            },
+          },
+          getDetailRowData: (params: any) => {
+            params.successCallback(params.data.products);
+          },
+        }}
+        defaultColDef={{ flex: 1, resizable: true }}
+      />
+    </div>
+  );
+};
+
+export default NestedAgGrid;
