@@ -12,52 +12,43 @@ const SqlConverter = () => {
     blocks.forEach((block) => {
       const lines = block.trim().split('\n');
       let tableName = '';
-      let columns = [];
-      let values = [];
+      const columns = [];
+      const values = [];
 
       lines.forEach((line) => {
         line = line.trim();
         if (!line) return;
 
-        // 1. Extract table name
+        // 1. Detect table name and handle SET on same line
         if (line.toUpperCase().startsWith('UPDATE')) {
           const parts = line.split(/\s+/);
           tableName = parts[1];
           return;
         }
 
-        // 2. Skip SET keyword
-        if (line.toUpperCase() === 'SET') return;
+        if (line.toUpperCase().startsWith('SET ')) {
+          // Inline SET with first assignment
+          line = line.replace(/^SET\s+/i, '').trim();
+        }
 
-        // 3. Handle WHERE clause
+        // 2. Handle WHERE clause
         if (line.toUpperCase().startsWith('WHERE')) {
-          const whereMatch = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
-          if (whereMatch) {
-            columns.push(whereMatch[1]);
-            values.push(`'${whereMatch[2]}'`);
+          const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
+          if (match) {
+            columns.push(match[1]);
+            values.push(`'${match[2]}'`);
           }
           return;
         }
 
-        // 4. Handle key = value pairs
-        const match = line.match(/^(\w+)\s*=\s*('?[^']*'?)\s*,?$/);
+        // 3. Parse column = value
+        const match = line.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*')\s*,?$/i);
         if (match) {
-          const key = match[1];
-          let val = match[2].trim();
-
-          if (val.toUpperCase() === 'SYSDATE') {
-            values.push('SYSDATE');
-          } else if (!val.startsWith("'")) {
-            val = `'${val}'`;
-            values.push(val);
-          } else {
-            values.push(val);
-          }
-          columns.push(key);
+          columns.push(match[1]);
+          values.push(match[2] === 'SYSDATE' ? 'SYSDATE' : match[2]);
         }
       });
 
-      // 5. Only if everything is captured
       if (tableName && columns.length > 0 && values.length > 0) {
         result += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
       }
@@ -68,11 +59,11 @@ const SqlConverter = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL Update to Insert Converter</h3>
+      <h3>SQL UPDATE → INSERT Converter</h3>
       <textarea
-        rows={20}
+        rows={15}
         cols={100}
-        placeholder="Paste UPDATE blocks ending with COMMIT;"
+        placeholder="Paste your SQL with COMMIT;"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
@@ -80,7 +71,7 @@ const SqlConverter = () => {
       <button onClick={convertSql}>Convert to INSERTs</button>
       <h4>Converted INSERT Statements:</h4>
       <textarea
-        rows={25}
+        rows={15}
         cols={100}
         value={output}
         readOnly
