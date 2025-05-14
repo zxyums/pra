@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 const SqlConverter = () => {
@@ -6,64 +5,68 @@ const SqlConverter = () => {
   const [output, setOutput] = useState('');
 
   const convertSql = () => {
-    const blocks = input.split(/COMMIT\s*;?/i).filter(Boolean);
-    let result = '';
+    try {
+      const blocks = input.split(/COMMIT\s*;?/i).filter(Boolean);
+      let result = '';
 
-    blocks.forEach((block) => {
-      const lines = block.trim().split('\n');
-      let tableName = '';
-      const columns = [];
-      const values = [];
+      blocks.forEach((block) => {
+        const lines = block.trim().split('\n');
+        let tableName = '';
+        const columns = [];
+        const values = [];
 
-      lines.forEach((line) => {
-        line = line.trim();
-        if (!line) return;
+        lines.forEach((line) => {
+          line = line.trim();
+          if (!line) return;
 
-        // 1. Detect table name and handle SET on same line
-        if (line.toUpperCase().startsWith('UPDATE')) {
-          const parts = line.split(/\s+/);
-          tableName = parts[1];
-          return;
-        }
+          // 1. Extract table name
+          if (line.toUpperCase().startsWith('UPDATE')) {
+            const parts = line.split(/\s+/);
+            tableName = parts[1];
+            return;
+          }
 
-        if (line.toUpperCase().startsWith('SET ')) {
-          // Inline SET with first assignment
-          line = line.replace(/^SET\s+/i, '').trim();
-        }
+          // 2. Handle inline SET
+          if (line.toUpperCase().startsWith('SET ')) {
+            line = line.replace(/^SET\s+/i, '').trim();
+          }
 
-        // 2. Handle WHERE clause
-        if (line.toUpperCase().startsWith('WHERE')) {
-          const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
+          // 3. Handle WHERE clause
+          if (line.toUpperCase().startsWith('WHERE')) {
+            const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
+            if (match) {
+              columns.push(match[1]);
+              values.push(`'${match[2]}'`);
+            }
+            return;
+          }
+
+          // 4. Parse key=value lines
+          const match = line.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*')\s*,?$/i);
           if (match) {
             columns.push(match[1]);
-            values.push(`'${match[2]}'`);
+            values.push(match[2] === 'SYSDATE' ? 'SYSDATE' : match[2]);
           }
-          return;
-        }
+        });
 
-        // 3. Parse column = value
-        const match = line.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*')\s*,?$/i);
-        if (match) {
-          columns.push(match[1]);
-          values.push(match[2] === 'SYSDATE' ? 'SYSDATE' : match[2]);
+        if (tableName && columns.length > 0 && values.length > 0) {
+          result += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
         }
       });
 
-      if (tableName && columns.length > 0 && values.length > 0) {
-        result += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
-      }
-    });
-
-    setOutput(result.trim());
+      setOutput(result.trim());
+    } catch (error) {
+      setOutput('-- ERROR: Failed to convert SQL block. Please check formatting.');
+    }
   };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL UPDATE → INSERT Converter</h3>
+      <h3>SQL UPDATE → INSERT Converter (Handles 9000+)</h3>
       <textarea
-        rows={15}
+        rows={20}
         cols={100}
-        placeholder="Paste your SQL with COMMIT;"
+        placeholder="Paste all 9000+ SQL UPDATE blocks here..."
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
@@ -71,7 +74,7 @@ const SqlConverter = () => {
       <button onClick={convertSql}>Convert to INSERTs</button>
       <h4>Converted INSERT Statements:</h4>
       <textarea
-        rows={15}
+        rows={25}
         cols={100}
         value={output}
         readOnly
