@@ -1,0 +1,65 @@
+import React, { useState } from 'react';
+
+const SqlConverter = () => {
+  const [input, setInput] = useState('');
+  const [output, setOutput] = useState('');
+
+  const convertToInsert = () => {
+    const lines = input.split('\n');
+    let tableName = '';
+    let columns = [];
+    let values = [];
+
+    lines.forEach((line) => {
+      if (line.trim().toUpperCase().startsWith('UPDATE')) {
+        tableName = line.split(' ')[1]; // assuming format: UPDATE schema.table_name
+      }
+
+      if (line.includes('SET')) return;
+
+      const match = line.match(/(\w+)\s*=\s*'([^']*)'/);
+      if (match) {
+        columns.push(match[1]);
+        values.push(`'${match[2]}'`);
+      }
+
+      // handle SYSDATE specially
+      if (line.includes('SYSDATE')) {
+        const col = line.split('=')[0].trim();
+        columns.push(col);
+        values.push('SYSDATE');
+      }
+    });
+
+    if (tableName && columns.length > 0 && values.length > 0) {
+      const insert = `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});`;
+      setOutput(insert);
+    } else {
+      setOutput('-- Failed to parse UPDATE statement');
+    }
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h3>SQL Update to Insert Converter</h3>
+      <textarea
+        rows={15}
+        cols={100}
+        placeholder="Paste your UPDATE SQL here"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      <br />
+      <button onClick={convertToInsert}>Convert to INSERT</button>
+      <h4>Converted INSERT Statement:</h4>
+      <textarea
+        rows={10}
+        cols={100}
+        value={output}
+        readOnly
+      />
+    </div>
+  );
+};
+
+export default SqlConverter;
