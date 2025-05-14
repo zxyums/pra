@@ -19,16 +19,19 @@ const SqlConverter = () => {
         let line = rawLine.trim();
         if (!line) return;
 
+        // 1. Get table name
         if (line.toUpperCase().startsWith('UPDATE')) {
           const parts = line.split(/\s+/);
           tableName = parts[1];
           return;
         }
 
+        // 2. Remove SET if present
         if (line.toUpperCase().startsWith('SET ')) {
-          line = line.replace(/^SET\s+/i, '').trim();
+          line = line.replace(/^SET\s+/i, '');
         }
 
+        // 3. Handle WHERE clause
         if (line.toUpperCase().startsWith('WHERE')) {
           const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
           if (match) {
@@ -38,31 +41,18 @@ const SqlConverter = () => {
           return;
         }
 
-        // === NEW: Handle multiple assignments in one line safely ===
-        const assignments = line.split(/,(?![^']*')/).map(s => s.trim()); // avoid commas inside quotes
+        // 4. Find all key=value pairs (safely includes SYSDATE and values with commas inside quotes)
+        const keyValMatches = [...line.matchAll(/(\w+)\s*=\s*(SYSDATE|'[^']*')/g)];
 
-        assignments.forEach((assign) => {
-          const match = assign.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*'|\d+)$/i);
-          if (match) {
-            const col = match[1];
-            let val = match[2];
-            if (val.toUpperCase() === 'SYSDATE') {
-              values.push('SYSDATE');
-            } else {
-              values.push(val);
-            }
-            columns.push(col);
-          }
+        keyValMatches.forEach(([_, key, val]) => {
+          columns.push(key);
+          values.push(val.toUpperCase() === 'SYSDATE' ? 'SYSDATE' : val);
         });
       });
 
       if (tableName && columns.length && values.length && columns.length === values.length) {
         finalOutput += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
       }
-
-      // reset
-      columns = [];
-      values = [];
     });
 
     setOutput(finalOutput.trim());
@@ -70,11 +60,11 @@ const SqlConverter = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL UPDATE → INSERT Converter (Handles RSN_DET, Multi-Assign, 9000+)</h3>
+      <h3>SQL UPDATE → INSERT Converter (Final Fix for RSN_DET and 9000+)</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste 9000+ UPDATE ... COMMIT blocks"
+        placeholder="Paste multiple UPDATE...COMMIT blocks"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
