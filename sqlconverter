@@ -9,8 +9,8 @@ const SqlConverter = () => {
     setLoading(true);
     setOutput('');
 
-    const blocks = input.split(/COMMIT\s*;/i).filter(Boolean); // Split by COMMIT; and remove empty
-    const batchSize = 100; // Process 100 blocks per batch to avoid freezing
+    const blocks = input.split(/COMMIT\s*;/i).filter(Boolean);
+    const batchSize = 100;
     const results = [];
 
     const processBatch = (index) => {
@@ -22,25 +22,46 @@ const SqlConverter = () => {
         let columns = [];
         let values = [];
 
+        let isWhere = false;
+
         lines.forEach((line) => {
-          if (line.trim().toUpperCase().startsWith('UPDATE')) {
-            const parts = line.trim().split(' ');
+          line = line.trim();
+
+          if (line.toUpperCase().startsWith('UPDATE')) {
+            const parts = line.split(' ');
             tableName = parts[1];
+            return;
           }
 
-          if (line.includes('SET') || line.trim().toUpperCase().startsWith('WHERE')) return;
-
-          const match = line.match(/(\w+)\s*=\s*'([^']*)'/);
-          if (match) {
-            columns.push(match[1]);
-            values.push(`'${match[2]}'`);
+          if (line.toUpperCase().startsWith('SET') || line.toUpperCase().startsWith('WHERE')) {
+            isWhere = line.toUpperCase().startsWith('WHERE');
+            line = line.replace(/^SET/i, '').replace(/^WHERE/i, '');
           }
 
-          if (line.includes('SYSDATE')) {
-            const col = line.split('=')[0].trim();
-            columns.push(col);
-            values.push('SYSDATE');
-          }
+          // Skip empty lines or irrelevant keywords
+          if (line === '' || line.toUpperCase() === 'SET' || line.toUpperCase() === 'WHERE') return;
+
+          const assignments = line.split(',').map(s => s.trim()).filter(Boolean);
+
+          assignments.forEach((assignment) => {
+            const match = assignment.match(/(\w+)\s*=\s*(.+)/);
+            if (match) {
+              const key = match[1];
+              let val = match[2].trim();
+
+              if (val.toUpperCase() === 'SYSDATE') {
+                columns.push(key);
+                values.push('SYSDATE');
+              } else if (val.startsWith("'") && val.endsWith("'")) {
+                columns.push(key);
+                values.push(val);
+              } else {
+                // handle numeric or other literals
+                columns.push(key);
+                values.push(`'${val.replace(';', '')}'`);
+              }
+            }
+          });
         });
 
         if (tableName && columns.length > 0) {
@@ -49,28 +70,26 @@ const SqlConverter = () => {
         }
       }
 
-      // Update output after every batch
       setOutput(prev => prev + results.join('\n\n') + '\n\n');
-      results.length = 0; // Clear for next batch
+      results.length = 0;
 
       if (index + batchSize < blocks.length) {
-        setTimeout(() => processBatch(index + batchSize), 10); // Schedule next batch
+        setTimeout(() => processBatch(index + batchSize), 10);
       } else {
         setLoading(false);
       }
     };
 
-    // Start processing
     processBatch(0);
   };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL Update → Insert Converter (Handles 9000+ Updates)</h3>
+      <h3>SQL Update → Insert Converter (Fast, Handles 9000+)</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste 9000+ UPDATE statements here (separated by COMMIT;)"
+        placeholder="Paste UPDATE statements separated by COMMIT;"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
