@@ -3,57 +3,84 @@ import React, { useState } from 'react';
 const SqlConverter = () => {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const convertToInsert = () => {
-    const lines = input.split('\n');
-    let tableName = '';
-    let columns = [];
-    let values = [];
+  const convertToInsertAsync = () => {
+    setLoading(true);
+    setOutput('');
 
-    lines.forEach((line) => {
-      if (line.trim().toUpperCase().startsWith('UPDATE')) {
-        tableName = line.split(' ')[1]; // assuming format: UPDATE schema.table_name
+    const blocks = input.split(/COMMIT\s*;/i).filter(Boolean); // Split by COMMIT; and remove empty
+    const batchSize = 100; // Process 100 blocks per batch to avoid freezing
+    const results = [];
+
+    const processBatch = (index) => {
+      for (let i = index; i < Math.min(index + batchSize, blocks.length); i++) {
+        const block = blocks[i].trim();
+        const lines = block.split('\n');
+
+        let tableName = '';
+        let columns = [];
+        let values = [];
+
+        lines.forEach((line) => {
+          if (line.trim().toUpperCase().startsWith('UPDATE')) {
+            const parts = line.trim().split(' ');
+            tableName = parts[1];
+          }
+
+          if (line.includes('SET') || line.trim().toUpperCase().startsWith('WHERE')) return;
+
+          const match = line.match(/(\w+)\s*=\s*'([^']*)'/);
+          if (match) {
+            columns.push(match[1]);
+            values.push(`'${match[2]}'`);
+          }
+
+          if (line.includes('SYSDATE')) {
+            const col = line.split('=')[0].trim();
+            columns.push(col);
+            values.push('SYSDATE');
+          }
+        });
+
+        if (tableName && columns.length > 0) {
+          const insert = `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;`;
+          results.push(insert);
+        }
       }
 
-      if (line.includes('SET')) return;
+      // Update output after every batch
+      setOutput(prev => prev + results.join('\n\n') + '\n\n');
+      results.length = 0; // Clear for next batch
 
-      const match = line.match(/(\w+)\s*=\s*'([^']*)'/);
-      if (match) {
-        columns.push(match[1]);
-        values.push(`'${match[2]}'`);
+      if (index + batchSize < blocks.length) {
+        setTimeout(() => processBatch(index + batchSize), 10); // Schedule next batch
+      } else {
+        setLoading(false);
       }
+    };
 
-      // handle SYSDATE specially
-      if (line.includes('SYSDATE')) {
-        const col = line.split('=')[0].trim();
-        columns.push(col);
-        values.push('SYSDATE');
-      }
-    });
-
-    if (tableName && columns.length > 0 && values.length > 0) {
-      const insert = `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});`;
-      setOutput(insert);
-    } else {
-      setOutput('-- Failed to parse UPDATE statement');
-    }
+    // Start processing
+    processBatch(0);
   };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL Update to Insert Converter</h3>
+      <h3>SQL Update → Insert Converter (Handles 9000+ Updates)</h3>
       <textarea
-        rows={15}
+        rows={20}
         cols={100}
-        placeholder="Paste your UPDATE SQL here"
+        placeholder="Paste 9000+ UPDATE statements here (separated by COMMIT;)"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
       <br />
-      <button onClick={convertToInsert}>Convert to INSERT</button>
-      <h4>Converted INSERT Statement:</h4>
+      <button onClick={convertToInsertAsync} disabled={loading}>
+        {loading ? 'Converting...' : 'Convert to INSERTs'}
+      </button>
+      <h4>Converted INSERT Statements:</h4>
       <textarea
-        rows={10}
+        rows={25}
         cols={100}
         value={output}
         readOnly
