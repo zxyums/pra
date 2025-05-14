@@ -5,68 +5,64 @@ const SqlConverter = () => {
   const [output, setOutput] = useState('');
 
   const convertSql = () => {
-    try {
-      const blocks = input.split(/COMMIT\s*;?/i).filter(Boolean);
-      let result = '';
+    const blocks = input.split(/COMMIT\s*;?/i).filter(Boolean);
+    let finalOutput = '';
 
-      blocks.forEach((block) => {
-        const lines = block.trim().split('\n');
-        let tableName = '';
-        const columns = [];
-        const values = [];
+    blocks.forEach((block) => {
+      const lines = block.trim().split('\n');
+      let tableName = '';
+      const columns = [];
+      const values = [];
 
-        lines.forEach((line) => {
-          line = line.trim();
-          if (!line) return;
+      lines.forEach((line) => {
+        line = line.trim();
+        if (!line) return;
 
-          // 1. Extract table name
-          if (line.toUpperCase().startsWith('UPDATE')) {
-            const parts = line.split(/\s+/);
-            tableName = parts[1];
-            return;
-          }
+        // Extract table name
+        if (line.toUpperCase().startsWith('UPDATE')) {
+          const parts = line.split(/\s+/);
+          tableName = parts[1];
+          return;
+        }
 
-          // 2. Handle inline SET
-          if (line.toUpperCase().startsWith('SET ')) {
-            line = line.replace(/^SET\s+/i, '').trim();
-          }
+        // Handle inline SET
+        if (line.toUpperCase().startsWith('SET ')) {
+          line = line.replace(/^SET\s+/i, '').trim();
+        }
 
-          // 3. Handle WHERE clause
-          if (line.toUpperCase().startsWith('WHERE')) {
-            const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
-            if (match) {
-              columns.push(match[1]);
-              values.push(`'${match[2]}'`);
-            }
-            return;
-          }
-
-          // 4. Parse key=value lines
-          const match = line.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*')\s*,?$/i);
+        // Handle WHERE clause
+        if (line.toUpperCase().startsWith('WHERE')) {
+          const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
           if (match) {
             columns.push(match[1]);
-            values.push(match[2] === 'SYSDATE' ? 'SYSDATE' : match[2]);
+            values.push(`'${match[2]}'`);
           }
-        });
+          return;
+        }
 
-        if (tableName && columns.length > 0 && values.length > 0) {
-          result += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
+        // Handle key = value
+        const match = line.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*'|\d+)\s*,?$/i);
+        if (match) {
+          columns.push(match[1]);
+          values.push(match[2].toUpperCase() === 'SYSDATE' ? 'SYSDATE' : match[2]);
         }
       });
 
-      setOutput(result.trim());
-    } catch (error) {
-      setOutput('-- ERROR: Failed to convert SQL block. Please check formatting.');
-    }
+      if (tableName && columns.length > 0 && values.length > 0) {
+        finalOutput += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
+      }
+    });
+
+    setOutput(finalOutput.trim());
   };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL UPDATE → INSERT Converter (Handles 9000+)</h3>
+      <h3>Multi-record SQL Update → Insert Converter</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste all 9000+ SQL UPDATE blocks here..."
+        placeholder="Paste multiple UPDATE blocks here"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
