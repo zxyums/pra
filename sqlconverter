@@ -1,115 +1,92 @@
 import React, { useState } from 'react';
 
-const SqlConverter = () => {
+const SqlUpdateToInsertConverter = () => {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const convertToInsertAsync = () => {
+  const convertSql = () => {
     setLoading(true);
     setOutput('');
 
-    const blocks = input.split(/COMMIT\s*;/i).filter(b => b.trim().length > 0);
-    const batchSize = 100;
-    const results = [];
+    const blocks = input.split(/COMMIT\s*;?/i).filter(Boolean);
+    let finalOutput = '';
 
-    const processBatch = (index) => {
-      for (let i = index; i < Math.min(index + batchSize, blocks.length); i++) {
-        const block = blocks[i].trim() + '\nCOMMIT;';
-        const lines = block.split('\n');
+    for (let block of blocks) {
+      const lines = block.trim().split('\n');
+      let tableName = '';
+      let columns = [];
+      let values = [];
+      let mode = '';
 
-        let tableName = '';
-        let columns = [];
-        let values = [];
-        let mode = '';
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
 
-        lines.forEach((rawLine) => {
-          let line = rawLine.trim();
-          if (!line) return;
+        if (line.toUpperCase().startsWith('UPDATE')) {
+          const parts = line.split(/\s+/);
+          const updateIndex = parts.findIndex(p => p.toUpperCase() === 'UPDATE');
+          tableName = parts[updateIndex + 1];
+          mode = 'SET';
 
-          // Detect UPDATE
-          if (line.toUpperCase().startsWith('UPDATE')) {
-            const parts = line.split(/\s+/);
-            const updateIndex = parts.findIndex(p => p.toUpperCase() === 'UPDATE');
-            const setIndex = parts.findIndex(p => p.toUpperCase() === 'SET');
-
-            tableName = parts[updateIndex + 1];
-            mode = 'SET';
-
-            // inline SET
-            if (setIndex > -1 && setIndex + 1 < parts.length) {
-              line = parts.slice(setIndex + 1).join(' ');
-            } else {
-              return;
-            }
+          const setMatch = line.match(/SET\s+(.*)/i);
+          if (setMatch && setMatch[1]) {
+            line = setMatch[1];
+          } else {
+            continue;
           }
+        }
 
-          if (line.toUpperCase() === 'SET') {
-            mode = 'SET';
-            return;
-          }
+        if (line.toUpperCase() === 'SET') {
+          mode = 'SET';
+          continue;
+        }
 
-          if (line.toUpperCase().startsWith('WHERE')) {
-            mode = 'WHERE';
-            line = line.replace(/^WHERE/i, '').trim();
-          }
+        if (line.toUpperCase().startsWith('WHERE')) {
+          mode = 'WHERE';
+          line = line.replace(/^WHERE/i, '').trim();
+        }
 
-          // Only process lines with =
-          if (!line.includes('=')) return;
+        const match = line.match(/^(\w+)\s*=\s*(.+?)[,;]?$/);
+        if (!match) continue;
 
-          const assignments = line.split(',').map(l => l.trim()).filter(Boolean);
+        const key = match[1];
+        let val = match[2].trim();
 
-          assignments.forEach((assign) => {
-            const match = assign.match(/^(\w+)\s*=\s*(.+?)[,;]?$/);
-            if (match) {
-              const key = match[1];
-              let val = match[2].trim();
-
-              if (val.toUpperCase() === 'SYSDATE') {
-                columns.push(key);
-                values.push('SYSDATE');
-              } else if (val.startsWith("'") && val.endsWith("'")) {
-                columns.push(key);
-                values.push(val);
-              } else {
-                columns.push(key);
-                values.push(`'${val.replace(/[';]/g, '')}'`);
-              }
-            }
-          });
-        });
-
-        if (tableName && columns.length > 0) {
-          const insert = `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;`;
-          results.push(insert);
+        if (val.toUpperCase() === 'SYSDATE') {
+          columns.push(key);
+          values.push('SYSDATE');
+        } else if (val.startsWith("'") && val.endsWith("'")) {
+          columns.push(key);
+          values.push(val);
+        } else {
+          columns.push(key);
+          values.push(`'${val.replace(/[';]/g, '')}'`);
         }
       }
 
-      setOutput(prev => prev + results.join('\n\n') + '\n\n');
-      results.length = 0;
-
-      if (index + batchSize < blocks.length) {
-        setTimeout(() => processBatch(index + batchSize), 10);
-      } else {
-        setLoading(false);
+      if (tableName && columns.length > 0) {
+        const insert = `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;`;
+        finalOutput += insert + '\n\n';
       }
-    };
+    }
 
-    processBatch(0);
+    setOutput(finalOutput.trim());
+    setLoading(false);
   };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL Update → Insert Converter (Final Fix with Valid Assignments Only)</h3>
+      <h3>Reliable SQL UPDATE to INSERT Converter</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste your UPDATE blocks ending with COMMIT;"
+        placeholder="Paste SQL UPDATE blocks separated by COMMIT;"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
       <br />
-      <button onClick={convertToInsertAsync} disabled={loading}>
+      <button onClick={convertSql} disabled={loading}>
         {loading ? 'Converting...' : 'Convert to INSERTs'}
       </button>
       <h4>Converted INSERT Statements:</h4>
@@ -123,4 +100,4 @@ const SqlConverter = () => {
   );
 };
 
-export default SqlConverter;
+export default SqlUpdateToInsertConverter;
