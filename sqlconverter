@@ -9,25 +9,25 @@ const SqlConverter = () => {
     setLoading(true);
     setOutput('');
 
-    const blocks = input.split(/COMMIT\s*;/i).filter(Boolean);
+    // Match full UPDATE block ending with COMMIT;
+    const blocks = input.split(/COMMIT\s*;/i).filter(b => b.trim().length > 0);
     const batchSize = 100;
     const results = [];
 
     const processBatch = (index) => {
       for (let i = index; i < Math.min(index + batchSize, blocks.length); i++) {
-        const block = blocks[i].trim();
+        const block = blocks[i].trim() + '\nCOMMIT;';
         const lines = block.split('\n');
 
         let tableName = '';
         let columns = [];
         let values = [];
-        let mode = ''; // 'SET' or 'WHERE'
+        let mode = '';
 
         lines.forEach((rawLine) => {
           let line = rawLine.trim();
           if (!line) return;
 
-          // Detect UPDATE and extract table name
           if (line.toUpperCase().startsWith('UPDATE')) {
             const parts = line.split(/\s+/);
             const updateIndex = parts.findIndex(p => p.toUpperCase() === 'UPDATE');
@@ -36,12 +36,11 @@ const SqlConverter = () => {
             tableName = parts[updateIndex + 1];
             mode = 'SET';
 
-            // If SET is on the same line
+            // inline SET
             if (setIndex > -1 && setIndex + 1 < parts.length) {
-              const rest = parts.slice(setIndex + 1).join(' ');
-              line = rest;
+              line = parts.slice(setIndex + 1).join(' ');
             } else {
-              return; // Go to next line
+              return;
             }
           }
 
@@ -55,7 +54,8 @@ const SqlConverter = () => {
             line = line.replace(/^WHERE/i, '').trim();
           }
 
-          const assignments = line.split(',').map(s => s.trim()).filter(Boolean);
+          const assignments = line.split(',').map(l => l.trim()).filter(Boolean);
+
           assignments.forEach((assign) => {
             const match = assign.match(/^(\w+)\s*=\s*(.+?)[,;]?$/);
             if (match) {
@@ -97,11 +97,11 @@ const SqlConverter = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL Update → Insert Converter (Handles 9000+ records)</h3>
+      <h3>SQL Update → Insert Converter (Fully Compatible with Bank SQL Format)</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste UPDATE statements ending with COMMIT;"
+        placeholder="Paste your UPDATE statements ending with COMMIT;"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
