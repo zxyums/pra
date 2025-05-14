@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const SqlUpdateToInsertConverter = () => {
+const SqlConverter = () => {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,51 +17,37 @@ const SqlUpdateToInsertConverter = () => {
       let tableName = '';
       let columns = [];
       let values = [];
-      let mode = '';
 
       for (let line of lines) {
         line = line.trim();
         if (!line) continue;
 
+        // Extract table name
         if (line.toUpperCase().startsWith('UPDATE')) {
           const parts = line.split(/\s+/);
-          const updateIndex = parts.findIndex(p => p.toUpperCase() === 'UPDATE');
-          tableName = parts[updateIndex + 1];
-          mode = 'SET';
-
-          const setMatch = line.match(/SET\s+(.*)/i);
-          if (setMatch && setMatch[1]) {
-            line = setMatch[1];
-          } else {
-            continue;
-          }
-        }
-
-        if (line.toUpperCase() === 'SET') {
-          mode = 'SET';
+          tableName = parts[1];
           continue;
         }
 
+        // Skip SET line
+        if (line.toUpperCase() === 'SET') continue;
+
+        // Handle WHERE line
         if (line.toUpperCase().startsWith('WHERE')) {
-          mode = 'WHERE';
-          line = line.replace(/^WHERE/i, '').trim();
+          const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
+          if (match) {
+            columns.push(match[1]);
+            values.push(`'${match[2]}'`);
+          }
+          continue;
         }
 
-        const match = line.match(/^(\w+)\s*=\s*(.+?)[,;]?$/);
-        if (!match) continue;
-
-        const key = match[1];
-        let val = match[2].trim();
-
-        if (val.toUpperCase() === 'SYSDATE') {
-          columns.push(key);
-          values.push('SYSDATE');
-        } else if (val.startsWith("'") && val.endsWith("'")) {
-          columns.push(key);
+        // Match key = value;
+        const match = line.match(/^(\w+)\s*=\s*'?([^']*)'?,?$/);
+        if (match) {
+          columns.push(match[1]);
+          const val = match[2].toUpperCase() === 'SYSDATE' ? 'SYSDATE' : `'${match[2]}'`;
           values.push(val);
-        } else {
-          columns.push(key);
-          values.push(`'${val.replace(/[';]/g, '')}'`);
         }
       }
 
@@ -77,11 +63,11 @@ const SqlUpdateToInsertConverter = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>Reliable SQL UPDATE to INSERT Converter</h3>
+      <h3>FINAL SQL Update → Insert Converter (Working for your Format)</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste SQL UPDATE blocks separated by COMMIT;"
+        placeholder="Paste UPDATE blocks ending with COMMIT;"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
@@ -100,4 +86,4 @@ const SqlUpdateToInsertConverter = () => {
   );
 };
 
-export default SqlUpdateToInsertConverter;
+export default SqlConverter;
