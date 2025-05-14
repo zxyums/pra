@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 const SqlConverter = () => {
@@ -9,28 +10,29 @@ const SqlConverter = () => {
     let finalOutput = '';
 
     blocks.forEach((block) => {
-      const lines = block.trim().split('\n');
       let tableName = '';
-      const columns = [];
-      const values = [];
+      let columns = [];
+      let values = [];
 
-      lines.forEach((line) => {
-        line = line.trim();
+      const lines = block.trim().split('\n');
+
+      lines.forEach((rawLine) => {
+        let line = rawLine.trim();
         if (!line) return;
 
-        // Extract table name
+        // 1. Detect table name
         if (line.toUpperCase().startsWith('UPDATE')) {
           const parts = line.split(/\s+/);
           tableName = parts[1];
           return;
         }
 
-        // Handle inline SET
+        // 2. Handle inline SET
         if (line.toUpperCase().startsWith('SET ')) {
           line = line.replace(/^SET\s+/i, '').trim();
         }
 
-        // Handle WHERE clause
+        // 3. Handle WHERE clause
         if (line.toUpperCase().startsWith('WHERE')) {
           const match = line.match(/WHERE\s+(\w+)\s*=\s*'?([^';]+)'?/i);
           if (match) {
@@ -40,17 +42,23 @@ const SqlConverter = () => {
           return;
         }
 
-        // Handle key = value
+        // 4. Parse key=value
         const match = line.match(/^(\w+)\s*=\s*(SYSDATE|'[^']*'|\d+)\s*,?$/i);
         if (match) {
           columns.push(match[1]);
-          values.push(match[2].toUpperCase() === 'SYSDATE' ? 'SYSDATE' : match[2]);
+          const val = match[2];
+          values.push(val.toUpperCase() === 'SYSDATE' ? 'SYSDATE' : val);
         }
       });
 
-      if (tableName && columns.length > 0 && values.length > 0) {
+      // 5. Only create INSERT if valid
+      if (tableName && columns.length && values.length && columns.length === values.length) {
         finalOutput += `INSERT INTO ${tableName} (${columns.join(', ')})\nVALUES (${values.join(', ')});\nCOMMIT;\n\n`;
       }
+
+      // reset per block
+      columns = [];
+      values = [];
     });
 
     setOutput(finalOutput.trim());
@@ -58,11 +66,11 @@ const SqlConverter = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>Multi-record SQL Update → Insert Converter</h3>
+      <h3>Final SQL Update → Insert Converter (Supports 9000+ Records)</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste multiple UPDATE blocks here"
+        placeholder="Paste multiple UPDATE... COMMIT blocks here"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
@@ -80,3 +88,7 @@ const SqlConverter = () => {
 };
 
 export default SqlConverter;
+
+
+
+
