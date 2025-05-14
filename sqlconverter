@@ -21,30 +21,43 @@ const SqlConverter = () => {
         let tableName = '';
         let columns = [];
         let values = [];
+        let mode = ''; // 'SET' or 'WHERE'
 
-        let isWhere = false;
+        lines.forEach((rawLine) => {
+          let line = rawLine.trim();
+          if (!line) return;
 
-        lines.forEach((line) => {
-          line = line.trim();
-
+          // Detect UPDATE and extract table name
           if (line.toUpperCase().startsWith('UPDATE')) {
-            const parts = line.split(' ');
-            tableName = parts[1];
+            const parts = line.split(/\s+/);
+            const updateIndex = parts.findIndex(p => p.toUpperCase() === 'UPDATE');
+            const setIndex = parts.findIndex(p => p.toUpperCase() === 'SET');
+
+            tableName = parts[updateIndex + 1];
+            mode = 'SET';
+
+            // If SET is on the same line
+            if (setIndex > -1 && setIndex + 1 < parts.length) {
+              const rest = parts.slice(setIndex + 1).join(' ');
+              line = rest;
+            } else {
+              return; // Go to next line
+            }
+          }
+
+          if (line.toUpperCase() === 'SET') {
+            mode = 'SET';
             return;
           }
 
-          if (line.toUpperCase().startsWith('SET') || line.toUpperCase().startsWith('WHERE')) {
-            isWhere = line.toUpperCase().startsWith('WHERE');
-            line = line.replace(/^SET/i, '').replace(/^WHERE/i, '');
+          if (line.toUpperCase().startsWith('WHERE')) {
+            mode = 'WHERE';
+            line = line.replace(/^WHERE/i, '').trim();
           }
 
-          // Skip empty lines or irrelevant keywords
-          if (line === '' || line.toUpperCase() === 'SET' || line.toUpperCase() === 'WHERE') return;
-
           const assignments = line.split(',').map(s => s.trim()).filter(Boolean);
-
-          assignments.forEach((assignment) => {
-            const match = assignment.match(/(\w+)\s*=\s*(.+)/);
+          assignments.forEach((assign) => {
+            const match = assign.match(/^(\w+)\s*=\s*(.+?)[,;]?$/);
             if (match) {
               const key = match[1];
               let val = match[2].trim();
@@ -56,9 +69,8 @@ const SqlConverter = () => {
                 columns.push(key);
                 values.push(val);
               } else {
-                // handle numeric or other literals
                 columns.push(key);
-                values.push(`'${val.replace(';', '')}'`);
+                values.push(`'${val.replace(/[';]/g, '')}'`);
               }
             }
           });
@@ -85,11 +97,11 @@ const SqlConverter = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h3>SQL Update → Insert Converter (Fast, Handles 9000+)</h3>
+      <h3>SQL Update → Insert Converter (Handles 9000+ records)</h3>
       <textarea
         rows={20}
         cols={100}
-        placeholder="Paste UPDATE statements separated by COMMIT;"
+        placeholder="Paste UPDATE statements ending with COMMIT;"
         value={input}
         onChange={(e) => setInput(e.target.value)}
       />
